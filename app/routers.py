@@ -13,16 +13,31 @@ dotenv.load_dotenv()
 SECRET_KEY = os.getenv("SECRET_KEY")
 ALGORITHM = os.getenv("ALGORITHM")
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
+PORTFOLIOS_DB = os.getenv("PORTFOLIOS_DB")
+USERS_DB = os.getenv("USERS_DB")
+SYMBOLS_DB = os.getenv("SYMBOLS_DB")
+ORDERS_DB = os.getenv("ORDERS_DB")
+PASSWORD_RESET_DB = os.getenv("PASSWORD_RESET_DB")
+
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 user_router = fastapi.APIRouter(tags=["user"])
 portfolio_router = fastapi.APIRouter(tags=["portfolio"])
 orders_router = fastapi.APIRouter(tags=["order"])
+symbols_router = fastapi.APIRouter(tags=["symbol"])
 
-orders_db = tinydb.TinyDB("orders.json", indent=4)
-users_db = tinydb.TinyDB("users.json", indent=4)
-portfolio_db = tinydb.TinyDB("portfolios.json", indent=4)
+DB_INDENT = 4
+orders_db = tinydb.TinyDB(ORDERS_DB, indent=DB_INDENT)
+users_db = tinydb.TinyDB(USERS_DB, indent=DB_INDENT)
+portfolio_db = tinydb.TinyDB(PORTFOLIOS_DB, indent=DB_INDENT)
+password_reset_requests_db = tinydb.TinyDB(PASSWORD_RESET_DB, indent=DB_INDENT)
+symbols_db = tinydb.TinyDB(SYMBOLS_DB, indent=DB_INDENT)
+
+
+def send_password_reset_email(email_to: str, username: str, token: str):
+    # TODO Implement this
+    pass
 
 
 def verify_password(plain_password, hashed_password):
@@ -98,6 +113,24 @@ async def get_current_active_user(
     return current_user
 
 
+async def get_user_portfolio(
+    id: str, user: models.User = fastapi.Depends(get_current_active_user)
+) -> models.Portfolio:
+    """
+    Get the current user's portfolio from the database. If the user is not found in the database, or if the user is disabled,
+    then raise an exception.
+    """
+    portfolio = portfolio_db.get(tinydb.where("id") == id)
+    if portfolio is None:
+        raise fastapi.HTTPException(status_code=404, detail="Portfolio not found")
+    # Check if the user is the owner of the portfolio
+    if portfolio.get("owner_id") != user.id:
+        raise fastapi.HTTPException(
+            status_code=403, detail="You don't have access to this portfolio"
+        )
+    return portfolio
+
+
 @user_router.post("/token", response_model=models.Token)
 async def login_for_access_token(
     form_data: OAuth2PasswordRequestForm = fastapi.Depends(),
@@ -114,10 +147,34 @@ async def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token_expires = datetime.timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires_timestamp = (datetime.datetime.utcnow() + access_token_expires).timestamp()
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
-    return {"access_token": access_token, "token_type": "bearer"}
+    return {
+        "access_token": access_token,
+        "access_token_expires": access_token_expires_timestamp,
+        "token_type": "bearer",
+    }
+
+
+@user_router.post("/token/refresh", response_model=models.Token)
+async def refresh_access_token(
+    user: models.User = fastapi.Depends(get_current_user),
+):
+    """
+    Refresh the access token for a user.
+    """
+    access_token_expires = datetime.timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    access_token_expires_timestamp = (datetime.datetime.utcnow() + access_token_expires).timestamp()
+    access_token = create_access_token(
+        data={"sub": user.username}, expires_delta=access_token_expires
+    )
+    return {
+        "access_token": access_token,
+        "access_token_expires": access_token_expires_timestamp,
+        "token_type": "bearer",
+    }
 
 
 @user_router.post("/signup", status_code=fastapi.status.HTTP_201_CREATED)
@@ -145,6 +202,87 @@ async def create_user(
     users_db.insert(user_in_db.dict())
 
 
+@user_router.post(
+    "/request-password-reset", status_code=fastapi.status.HTTP_202_ACCEPTED
+)
+async def request_password_reset(
+    username: str = fastapi.Form(...),
+):
+    """
+    Reset the password for a user. If the user is not found in the database, then raise an exception.
+    """
+    RESET_TOKEN_EXPIRE_MINUTES = 2 * 24 * 60
+    user_in_db = get_user(users_db, username)
+    if not user_in_db:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+            detail="User not found",
+        )
+    # Generate a reset token
+    reset_request_expires = datetime.timedelta(minutes=RESET_TOKEN_EXPIRE_MINUTES)
+    reset_token = create_access_token(
+        data={"sub": user_in_db.username}, expires_delta=reset_request_expires
+    )
+    # Store the reset token in the database
+    password_reset_requests_db.insert(
+        {"token": reset_token, "username": user_in_db.username}
+    )
+    # Send the email
+    send_password_reset_email(
+        email_to=user_in_db.email, username=user_in_db.username, token=reset_token
+    )
+    return fastapi.Response(status_code=fastapi.status.HTTP_202_ACCEPTED)
+
+
+@user_router.post("/reset-password", status_code=fastapi.status.HTTP_202_ACCEPTED)
+async def reset_password(
+    token: str = fastapi.Form(...),
+    password: str = fastapi.Form(...),
+):
+    """
+    Reset the password for a user. If the user is not found in the database, then raise an exception.
+    """
+    # Check if the token is valid
+    reset_request = password_reset_requests_db.get(tinydb.where("token") == token)
+    if reset_request is None:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+            detail="Invalid token",
+        )
+    # Decode the token and get the username and expiration date
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        username: str = payload.get("sub")
+        expiration: int = payload.get("exp")
+    except jwt.PyJWTError:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+            detail="Invalid token",
+        )
+    # Check if the token has expired
+    if expiration < datetime.datetime.utcnow().timestamp():
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+            detail="Token expired",
+        )
+    # Check if the user exists
+    user_in_db = get_user(users_db, username)
+    if not user_in_db:
+        raise fastapi.HTTPException(
+            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+            detail="User not found",
+        )
+    # Update the user's password
+    hashed_password = get_password_hash(password)
+    users_db.update(
+        {"hashed_password": hashed_password},
+        tinydb.where("username") == username,
+    )
+    # Remove the token from the database
+    password_reset_requests_db.remove(tinydb.where("token") == token)
+    return fastapi.Response(status_code=fastapi.status.HTTP_202_ACCEPTED)
+
+
 @user_router.get("/users/me/", response_model=models.User)
 async def read_users_me(
     current_user: models.User = fastapi.Depends(get_current_active_user),
@@ -157,21 +295,8 @@ async def read_users_me(
 
 
 @portfolio_router.get("/portfolio", response_model=models.Portfolio)
-def get_portfolio(
-    id: str, user: models.User = fastapi.Depends(get_current_active_user)
-):
-    portfolio = portfolio_db.get(tinydb.where("id") == id)
-    if not portfolio:
-        return fastapi.Response(status_code=404, content="Portfolio not found")
-    portfolio_id = portfolio.get("id")
-    if portfolio_id in user.portfolio_ids:
-        return portfolio
-    is_public_portfolio = portfolio.get("is_public")
-    if is_public_portfolio:
-        return portfolio
-    return fastapi.Response(
-        status_code=403, content="You do not have access to this portfolio"
-    )
+def get_portfolio(portfolio: models.Portfolio = fastapi.Depends(get_user_portfolio)):
+    return portfolio
 
 
 @portfolio_router.post("/portfolio", response_model=models.Portfolio)
@@ -185,7 +310,15 @@ def create_portfolio(
     )
     portfolio_db.insert(portfolio.dict())
     users_db.update(
-        {"portfolio_ids": user.portfolio_ids + [portfolio.id]},
+        {
+            "portfolios": user.portfolios
+            + [
+                {
+                    "id": portfolio.id,
+                    "name": portfolio.name,
+                }
+            ]
+        },
         tinydb.where("id") == user.id,
     )
     return portfolio
@@ -193,50 +326,65 @@ def create_portfolio(
 
 @portfolio_router.put("/portfolio", response_model=models.Portfolio)
 def update_portfolio(
-    id: str,
     portfolio_name: str = fastapi.Form(...),
     is_public: bool = fastapi.Form(False),
-    user: models.User = fastapi.Depends(get_current_active_user),
+    portfolio: models.Portfolio = fastapi.Depends(get_user_portfolio),
 ):
-    portfolio = portfolio_db.get(tinydb.where("id") == id)
-    if portfolio.get("owner_id") != user.id:
-        return fastapi.Response(status_code=403)
-    portfolio_db.update(
-        {
-            "name": portfolio_name,
-            "is_public": is_public,
-        },
-        tinydb.where("id") == id,
+    portfolio_id = portfolio["id"]
+    updated_portfolio = models.Portfolio(
+        id=portfolio_id,
+        name=portfolio_name,
+        owner_id=portfolio["owner_id"],
+        is_public=is_public,
     )
-    return portfolio_db.get(tinydb.where("id") == id)
+    portfolio_db.update(
+        updated_portfolio.dict(),
+        tinydb.where("id") == portfolio_id,
+    )
+    # Update the name of the portfolio in the user's list of portfolios
+    user_portfolios = users_db.get(tinydb.where("id") == portfolio["owner_id"])
+    # User portfolios have two fields: id and name
+    user_portfolios = [
+        p if p["id"] != portfolio_id else {"id": portfolio_id, "name": portfolio_name}
+        for p in user_portfolios["portfolios"]
+    ]
+    users_db.update(
+        {"portfolios": user_portfolios},
+        tinydb.where("id") == portfolio["owner_id"],
+    )
+    return updated_portfolio
 
 
 @portfolio_router.delete("/portfolio")
-def delete_portfolio(
-    id: str,
-    user: models.User = fastapi.Depends(get_current_active_user),
-):
-    portfolio = portfolio_db.get(tinydb.where("id") == id)
-    if portfolio.get("owner_id") != user.id:
-        return fastapi.Response(status_code=403)
-    portfolio_db.remove(tinydb.where("id") == id)
-    filtered_portfolio_ids = [
-        portfolio_id for portfolio_id in user.portfolio_ids if portfolio_id != id
+def delete_portfolio(portfolio: models.Portfolio = fastapi.Depends(get_user_portfolio)):
+    """
+    Delete a portfolio. If the portfolio is not found, then raise an exception.
+    """
+    portfolio_id = portfolio["id"]
+    portfolio_db.remove(tinydb.where("id") == portfolio_id)
+    # Remove the portfolio from the user's list of portfolios
+    user_portfolios = users_db.get(tinydb.where("id") == portfolio["owner_id"])
+    user_portfolios = [
+        p for p in user_portfolios["portfolios"] if p["id"] != portfolio_id
     ]
     users_db.update(
-        {"portfolio_ids": filtered_portfolio_ids},
-        tinydb.where("id") == user.id,
+        {"portfolios": user_portfolios},
+        tinydb.where("id") == portfolio["owner_id"],
     )
-    orders_db.remove(tinydb.where("portfolio_id") == id)
+    # Remove all orders associated with the portfolio
+    orders_db.remove(tinydb.where("portfolio_id") == portfolio_id)
     return fastapi.Response(status_code=204)
 
 
 @orders_router.get("/order", response_model=models.Order)
 def get_order(id: str, user: models.User = fastapi.Depends(get_current_active_user)):
+    """
+    Retrieve details about a specific order. If the order is not found, then raise an exception.
+    """
     order = orders_db.get(tinydb.where("id") == id)
     if order is None:
         raise fastapi.HTTPException(status_code=404)
-    user_portfolio_ids = user.portfolio_ids
+    user_portfolio_ids = [p.get("id") for p in user.portfolios]
     order_portfolio_id = order.get("portfolio_id")
     if order_portfolio_id in user_portfolio_ids:
         return order
@@ -247,44 +395,54 @@ def get_order(id: str, user: models.User = fastapi.Depends(get_current_active_us
 def create_order(
     symbol: str = fastapi.Form(...),
     quantity: float = fastapi.Form(...),
-    portfolio_id: str = fastapi.Form(...),
-    user: models.User = fastapi.Depends(get_current_active_user),
+    side: str = fastapi.Form(...),
+    order_type: str = fastapi.Form(...),
+    limit_price: float = fastapi.Form(None),
+    portfolio: models.Portfolio = fastapi.Depends(get_user_portfolio),
 ):
-    portfolio = portfolio_db.get(tinydb.where("id") == portfolio_id)
-    if not portfolio:
-        raise fastapi.HTTPException(status_code=404, detail="Portfolio not found")
-    if portfolio.get("owner_id") != user.id:
-        return fastapi.Response(
-            status_code=403, detail="You do not have access to this portfolio"
-        )
-    order = models.Order(symbol=symbol, quantity=quantity, portfolio_id=portfolio_id)
-    orders_db.insert(order.dict())
-    portfolio_db.update(
-        {"order_ids": portfolio.get("order_ids") + [order.id]},
-        tinydb.where("id") == portfolio_id,
+    portfolio_id = portfolio["id"]
+    # Create the order object
+    order = models.Order(
+        symbol=symbol,
+        quantity=quantity,
+        side=side,
+        order_type=order_type,
+        limit_price=limit_price,
+        portfolio_id=portfolio_id,
     )
+    orders_db.insert(order.dict())
+    # Add the order to the portfolio orders
+    portfolio["orders"] = portfolio["orders"] + [order.dict()]
+    portfolio_db.update(portfolio, tinydb.where("id") == portfolio_id)
     return order
 
 
-@orders_router.delete("/order", response_model=models.Order)
+@orders_router.delete("/order")
 def cancel_order(
     id: str,
     user: models.User = fastapi.Depends(get_current_active_user),
 ):
+    # Get the order from the database
     order = orders_db.get(tinydb.where("id") == id)
     if order is None:
         raise fastapi.HTTPException(status_code=404)
-    portfolio_id = order.get("portfolio_id")
-    user_portfolio_ids = user.portfolio_ids
-    if portfolio_id not in user_portfolio_ids:
+    # Check that the user has access to the order
+    user_portfolio_ids = [p.get("id") for p in user.portfolios]
+    order_portfolio_id = order.get("portfolio_id")
+    if order_portfolio_id not in user_portfolio_ids:
         raise fastapi.HTTPException(status_code=403)
+    # Delete the order from the database
     orders_db.remove(tinydb.where("id") == id)
-    portfolio = portfolio_db.get(tinydb.where("id") == portfolio_id)
-    portfolio_order_ids = portfolio.get("order_ids")
-    filtered_portfolio_order_ids = [
-        portfolio_order_id
-        for portfolio_order_id in portfolio_order_ids
-        if portfolio_order_id != id
-    ]
-    portfolio_db.update({"order_ids": filtered_portfolio_order_ids})
-    return order
+    # Delete the order from the portfolio
+    portfolio = portfolio_db.get(tinydb.where("id") == order_portfolio_id)
+    portfolio["orders"] = [o for o in portfolio["orders"] if o["id"] != id]
+    portfolio_db.update(portfolio, tinydb.where("id") == order_portfolio_id)
+    return fastapi.Response(status_code=204)
+
+
+@symbols_router.get("/symbols", response_model=list[models.Symbol])
+async def get_available_symbol():
+    """
+    Retrieve a list of all available symbols.
+    """
+    return symbols_db.table("symbols").all()

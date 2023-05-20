@@ -3,8 +3,14 @@ import datetime
 import pydantic
 
 
+class Symbol(pydantic.BaseModel):
+    ticker: str
+    name: str
+    logo: str = None
+
 class Token(pydantic.BaseModel):
     access_token: str
+    access_token_expires: float
     token_type: str
 
 
@@ -16,6 +22,7 @@ class Position(pydantic.BaseModel):
     symbol: str
     quantity: float
     price: float
+    side: str
     id: str = pydantic.Field(default_factory=lambda: str(uuid.uuid4()))
 
 
@@ -23,25 +30,19 @@ class Order(pydantic.BaseModel):
     symbol: str
     quantity: float
     portfolio_id: str
+    side: str
+    order_type: str
+    limit_price: float = None
     created_at: str = pydantic.Field(default_factory=lambda: str(datetime.datetime.utcnow()))
     id: str = pydantic.Field(default_factory=lambda: str(uuid.uuid4()))
-
-
-class MarketOrder(Order):
-    pass
-
-
-class LimitOrder(Order):
-    limit_price: float
-
 
 class Portfolio(pydantic.BaseModel):
     name: str
     owner_id: str
     id: str = pydantic.Field(default_factory=lambda: str(uuid.uuid4()))
     is_public: bool = False
-    position_ids: list[Position] = []
-    order_ids: list[str] = []
+    positions: list[Position] = []
+    orders: list[Order] = []
 
 
 class User(pydantic.BaseModel):
@@ -49,7 +50,7 @@ class User(pydantic.BaseModel):
     email: str
     disabled: bool = False
     id: str = pydantic.Field(default_factory=lambda: str(uuid.uuid4()))
-    portfolio_ids: list[str] = []
+    portfolios: list[dict] = []
 
 
 class UserInDB(User):

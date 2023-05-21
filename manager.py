@@ -82,7 +82,7 @@ class OrderManager:
             self.__process_order_single(order)
 
     def __process_order_single(self, order: models.Order):
-        """  
+        """
         Process a single order. A different method is used for each order type.
         """
         ask_price = float(self.__symbol_price_map[order.symbol]["ask"])
@@ -95,19 +95,23 @@ class OrderManager:
             case _:
                 raise ValueError(f"Invalid order type: {order.order_type}")
 
-    def __create_position(self, order: models.Order, fill_price: float) -> models.Position:
+    def __create_position(
+        self, order: models.Order, fill_price: float
+    ) -> models.Position:
         """
         Create a new position and update the user's portfolio.
         """
         position = models.Position(
             symbol=order.symbol,
             quantity=order.quantity,
-            price=fill_price,
             side=order.side,
+            value=order.quantity * fill_price,
         )
         return position
 
-    def __process_market_order(self, order: models.Order, ask_price: float, bid_price: float):
+    def __process_market_order(
+        self, order: models.Order, ask_price: float, bid_price: float
+    ):
         """
         Process a market order.
         """
@@ -115,7 +119,9 @@ class OrderManager:
         position = self.__create_position(order, fill_price)
         self.__update_positions(position, order)
 
-    def __process_limit_order(self, order: models.Order, ask_price: float, bid_price: float):
+    def __process_limit_order(
+        self, order: models.Order, ask_price: float, bid_price: float
+    ):
         """
         Process a limit order.
         """
@@ -128,21 +134,85 @@ class OrderManager:
         position = self.__create_position(order, fill_price)
         self.__update_positions(position, order)
 
-    def __update_positions(self, position: models.Position, order: models.Order):
+    def __update_positions(self, new_position: models.Position, order: models.Order):
         """
         Update the positions database with the new position and remove the order from the orders database.
+        If the user already has a position in the same symbol, then the position is updated.
+        If the order side is SELL, then the position is reduced, otherwise it is increased.
         """
-        portfolio_id = order.portfolio_id
-        portfolio = self.__portfolios_db.get(tinydb.where("id") == portfolio_id)
-        portfolio_positions = list(portfolio.get("positions"))
-        portfolio_orders = list(portfolio.get("orders"))
-        portfolio_orders.remove(order)
-        portfolio_positions.append(position.dict())
-        self.__portfolios_db.update(
-            {"positions": portfolio_positions, "orders": portfolio_orders},
-            tinydb.where("id") == portfolio_id,
+        portfolio = self.__portfolios_db.get(tinydb.where("id") == order.portfolio_id)
+        portfolio = models.Portfolio.parse_obj(portfolio)
+        existing_position = next(
+            (
+                position
+                for position in portfolio.positions
+                if position.symbol == new_position.symbol
+            ),
+            None,
         )
+        if existing_position:
+            existing_position = models.Position.parse_obj(existing_position)
+            updated_position = self.__update_existing_position(
+                existing_position, new_position
+            )
+            portfolio.positions = [
+                updated_position.dict()
+                if position.symbol == updated_position.symbol
+                else position
+                for position in portfolio.positions
+            ]
+        else:
+            portfolio = self.__add_new_position(new_position, portfolio)
+        portfolio = self.__remove_order(order, portfolio)
+        self.__portfolios_db.update(
+            portfolio.dict(), tinydb.where("id") == portfolio.id
+        )
+
+    def __update_existing_position(
+        self, existing_position: models.Position, new_position: models.Position
+    ):
+        """
+        Update an existing position with a new position.
+        If the new position is a SELL, then the existing position is reduced, otherwise it is increased.
+        Change the side of the existing position to SELL if the quantity after the order is negative.
+        Change the side of the existing position to BUY if the quantity after the order is positive.
+        If sell order reduce the value of the existing position by the value of the new position.
+        If buy order increase the value of the existing position by the value of the new position.
+        """
+        current_position_quantity = existing_position.quantity * (
+            1 if existing_position.side == "BUY" else -1
+        )
+        new_position_quantity = new_position.quantity * (
+            1 if new_position.side == "BUY" else -1
+        )
+        existing_position.quantity = current_position_quantity + new_position_quantity
+        if existing_position.quantity < 0:
+            existing_position.side = "SELL"
+        elif existing_position.quantity > 0:
+            existing_position.side = "BUY"
+        else:
+            return None
+        existing_position.value += (
+            new_position.value if new_position.side == "BUY" else -new_position.value
+        )
+        existing_position.quantity = abs(existing_position.quantity) # Always show positive quantity
+        return existing_position
+
+    def __add_new_position(
+        self, new_position: models.Position, portfolio: models.Portfolio
+    ) -> dict:
+        portfolio.positions.append(new_position.dict())
+        return portfolio
+
+    def __remove_order(
+        self, order: models.Order, portfolio: models.Portfolio
+    ) -> models.Portfolio:
+        """
+        Remove an order from the orders database and the user's portfolio.
+        """
         self.__orders_db.remove(tinydb.where("id") == order.id)
+        portfolio.orders = list(filter(lambda o: o.id != order.id, portfolio.orders))
+        return portfolio
 
     def __manage_brokerage_session(self):
         """

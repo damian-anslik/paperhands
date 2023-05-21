@@ -21,10 +21,10 @@ class TokenData(pydantic.BaseModel):
 class Position(pydantic.BaseModel):
     symbol: str
     quantity: float
-    price: float
     side: str
+    value: float
+    pnl: float = 0.0
     id: str = pydantic.Field(default_factory=lambda: str(uuid.uuid4()))
-
 
 class Order(pydantic.BaseModel):
     symbol: str

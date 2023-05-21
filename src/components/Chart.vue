@@ -14,28 +14,27 @@ export default {
             return this.$store.state.activeSymbol
         }
     },
+    mounted() {
+        if (this.activeSymbol === '') return
+        this.requestHistoricalData(this.activeSymbol)
+    },
     watch: {
         activeSymbol: function (symbol) {
-            if (this.activeSymbol === '') return
-            this.updateSeries([])
-            this.updateChartOptions({
-                title: {
-                    text: `${symbol} Chart`
-                },
-                noData: {
-                    text: 'Loading...'
-                }
-            })
+            if (symbol === '') return
+            this.chartIsLoading(symbol)
+            this.requestHistoricalData(symbol)
+        }
+    },
+    methods: {
+        requestHistoricalData(symbol, name) {
             controller.getHistoricalData(symbol)
                 .then(response => {
-                    console.log(response.data)
                     const bars = response.data.bars.map(bar => {
                         return {
                             x: new Date(bar.t),
                             y: [bar.o, bar.h, bar.l, bar.c]
                         }
                     })
-                    console.log(bars);
                     this.updateSeries([
                         {
                             data: bars
@@ -43,22 +42,34 @@ export default {
                     ])
                     this.updateChartOptions({
                         title: {
-                            text: `${symbol} Chart`
+                            text: `${symbol}`
                         },
+                        noData: {
+                            text: `No data available for ${symbol}`
+                        }
                     })
                 })
                 .catch(error => {
                     console.log(error);
                 })
-        }
-    },
-    methods: {
+        },
+        chartIsLoading(symbol) {
+            this.updateSeries([])
+            this.updateChartOptions({
+                title: {
+                    text: ''
+                },
+                noData: {
+                    text: 'Loading...'
+                }
+            })
+        },
         updateChartOptions(newOptions) {
             this.$refs.chart.updateOptions(newOptions)
         },
         updateSeries(newSeries) {
             this.$refs.chart.updateSeries(newSeries, true)
-        },
+        }
     },
     data: () => ({
         chartOptions: {
@@ -77,6 +88,9 @@ export default {
                         pan: true,
                         reset: true
                     },
+                },
+                animations: {
+                    enabled: false
                 }
             },
             noData: {

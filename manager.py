@@ -105,7 +105,7 @@ class OrderManager:
             symbol=order.symbol,
             quantity=order.quantity,
             side=order.side,
-            value=order.quantity * fill_price,
+            value=order.quantity * fill_price * (-1 if order.side == "SELL" else 1),
         )
         return position
 
@@ -192,9 +192,7 @@ class OrderManager:
             existing_position.side = "BUY"
         else:
             return None
-        existing_position.value += (
-            new_position.value if new_position.side == "BUY" else -new_position.value
-        )
+        existing_position.value += new_position.value
         existing_position.quantity = abs(existing_position.quantity) # Always show positive quantity
         return existing_position
 

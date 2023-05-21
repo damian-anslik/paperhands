@@ -151,9 +151,8 @@ nav {
         position: absolute;
         top: 3.5rem;
         right: 0.25rem;
-        background-color: rgba(13, 17, 23, 0.95);
+        background-color: rgba(13, 17, 23, 1);
         padding: 0.5rem;
-        border-radius: 0.25rem;
         box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.1);
         z-index: 1;
         text-align: right;

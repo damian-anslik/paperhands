@@ -98,7 +98,6 @@ export default {
 </script>
 
 <style scoped>
-/* TODO Fix input overflow causing horizontal scroll */
 form {
     margin: 0 auto;
     background-color: #0d1117;

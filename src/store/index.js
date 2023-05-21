@@ -4,8 +4,6 @@ import controller from '@/controller'
 
 const routeToPush = 'Dashboard'
 
-// TODO Handle expired tokens
-
 const localStoragePlugin = store => {
   store.subscribe((_, state) => {
     localStorage.setItem('store', JSON.stringify(state))
@@ -15,7 +13,7 @@ const localStoragePlugin = store => {
 const activePortfolioPlugin = store => {
   let interval = null
   store.subscribe((_, state) => {
-    if (state.activePortfolio) {
+    if (state.token) {
       if (interval) {
         clearInterval(interval)
       }
@@ -23,6 +21,10 @@ const activePortfolioPlugin = store => {
         const portfolio = await controller.portfolioData(state.activePortfolio.id)
         store.commit('setPortfolio', portfolio.data)
       }, 5000)
+    }
+    else {
+      // Stops the interval when the user logs out
+      clearInterval(interval)
     }
   })
 }
@@ -77,6 +79,9 @@ const store = createStore({
     token(state) {
       return state.token
     },
+    tokenExpiry(state) {
+      return state.tokenExpiry
+    },
     activePortfolio(state) {
       return state.activePortfolio
     },
@@ -109,16 +114,11 @@ const store = createStore({
       router.push({ name: routeToPush })
     },
     async logout({ commit }) {
-      commit('setTokenExpiry', null)
       commit('setToken', null)
       commit('setUser', null)
       commit('setPortfolio', null)
+      commit('setTokenExpiry', null)
       router.push({ name: 'Home' })
-    },
-    async refreshSessionToken({ commit }) {
-      const tokenData = await controller.refreshToken()
-      commit('setToken', tokenData.data.access_token)
-      commit('setTokenExpiry', tokenData.data.access_token_expires)
     },
     async addPortfolio({ commit }, { id, name }) {
       let user = this.getters.user
@@ -139,6 +139,10 @@ const store = createStore({
       let portfolio = this.getters.activePortfolio
       portfolio.orders = portfolio.orders.filter(order => order.id !== orderId)
       commit('setPortfolio', portfolio)
+    },
+    async extendSession({ commit }, { access_token, access_token_expires }) {
+      commit('setToken', access_token)
+      commit('setTokenExpiry', access_token_expires)
     }
   },
   plugins: [

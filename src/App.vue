@@ -8,7 +8,6 @@
 <script>
 import Navbar from '@/components/Navbar.vue'
 import controller from '@/controller'
-
 export default {
   name: 'App',
   components: {
@@ -55,7 +54,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-align: center;
-  color: #2c3e50;
+  color: #c9d1d9;
   margin: 0 auto;
   display: flex;
   flex-direction: column;

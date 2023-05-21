@@ -104,7 +104,7 @@ button {
 
 a {
     cursor: pointer;
-    color: #2c3e50;
+    color: #c9d1d9;
     font-weight: bold;
     text-decoration: none;
 }

@@ -94,7 +94,7 @@ nav {
     box-shadow: 0 1px 0 0 rgba(255, 255, 255, 0.1);
     background-color: rgba(13, 17, 23, 0.95);
     user-select: none;
-    z-index: 1;
+    z-index: 999;
 }
 
 .links > div {

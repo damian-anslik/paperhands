@@ -133,6 +133,17 @@ const controller = {
                 }
             })
     },
+    async getHistoricalData(symbol) {
+        return axios.get('/symbols/hmds',
+            {
+                params: {
+                    symbol
+                },
+                headers: this.authHeader()
+            }
+        )
+    },
+
 }
 
 export default controller

@@ -3,6 +3,8 @@ import tinydb
 import fastapi
 import dotenv
 import os
+import numpy
+from cpapi import session
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
 from passlib.context import CryptContext
@@ -17,6 +19,7 @@ PORTFOLIOS_DB = os.getenv("PORTFOLIOS_DB")
 USERS_DB = os.getenv("USERS_DB")
 SYMBOLS_DB = os.getenv("SYMBOLS_DB")
 ORDERS_DB = os.getenv("ORDERS_DB")
+HMDS_DB = os.getenv("HMDS_DB")
 PASSWORD_RESET_DB = os.getenv("PASSWORD_RESET_DB")
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
@@ -33,6 +36,10 @@ users_db = tinydb.TinyDB(USERS_DB, indent=DB_INDENT)
 portfolio_db = tinydb.TinyDB(PORTFOLIOS_DB, indent=DB_INDENT)
 password_reset_requests_db = tinydb.TinyDB(PASSWORD_RESET_DB, indent=DB_INDENT)
 symbols_db = tinydb.TinyDB(SYMBOLS_DB, indent=DB_INDENT)
+hmds_db = tinydb.TinyDB(HMDS_DB, indent=DB_INDENT)
+
+# Client Portal API
+cpapi_client = session.GatewaySession()
 
 
 def send_password_reset_email(email_to: str, username: str, token: str):
@@ -147,7 +154,9 @@ async def login_for_access_token(
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token_expires = datetime.timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token_expires_timestamp = (datetime.datetime.utcnow() + access_token_expires).timestamp()
+    access_token_expires_timestamp = (
+        datetime.datetime.utcnow() + access_token_expires
+    ).timestamp()
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
@@ -166,7 +175,9 @@ async def refresh_access_token(
     Refresh the access token for a user.
     """
     access_token_expires = datetime.timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    access_token_expires_timestamp = (datetime.datetime.utcnow() + access_token_expires).timestamp()
+    access_token_expires_timestamp = (
+        datetime.datetime.utcnow() + access_token_expires
+    ).timestamp()
     access_token = create_access_token(
         data={"sub": user.username}, expires_delta=access_token_expires
     )
@@ -446,3 +457,75 @@ async def get_available_symbol():
     Retrieve a list of all available symbols.
     """
     return symbols_db.table("symbols").all()
+
+
+def filter_bars(bars: list[dict]) -> list[dict]:
+    """
+    Filter out bars that are above a moving average threshold.
+    """
+    MOVING_AVERAGE_WINDOW = 3
+    MOVING_AVERAGE_FILTER_THRESHOLD = 2
+    open_prices = [bar["o"] for bar in bars]
+    open_price_ma = (
+        numpy.convolve(open_prices, numpy.ones(MOVING_AVERAGE_WINDOW), "valid")
+        / MOVING_AVERAGE_WINDOW
+    )
+    open_prices_ma = numpy.concatenate(
+        (numpy.full(10, numpy.nan), open_price_ma), axis=None
+    )
+    filtered_bars = [
+        bar
+        for bar, open_ma in zip(bars, open_prices_ma)
+        if bar["o"] < MOVING_AVERAGE_FILTER_THRESHOLD * open_ma
+    ]
+    return filtered_bars
+
+
+def request_historical_data(
+    conid: str, period: str, bar: str, start: datetime = None
+) -> list[dict]:
+    """
+    Retrieve historical data for a contract.
+    """
+    response = cpapi_client.historical_market_data(
+        conid=conid,
+        period=period,
+        bar=bar,
+        start_time=start,
+        outside_rth=True,
+    )
+    bars = response["data"]
+    filtered_bars = filter_bars(bars)
+    return filtered_bars
+
+
+@symbols_router.get("/symbols/hmds")
+async def get_historical_market_data(
+    symbol: str, _: models.User = fastapi.Depends(get_current_active_user)
+):
+    """
+    Get historical market data for a symbol. If the symbol is not found, then raise an exception.
+    If the symbol is found in the database, then return the historical market data from the database,
+    otherwise, retrieve the historical market data from the API and store it in the database.
+    """
+    symbol_upper = symbol.upper()
+    market_data = hmds_db.get(tinydb.where("symbol") == symbol_upper)
+    if market_data:
+        market_data_last_updated = datetime.datetime.fromisoformat(
+            market_data["last_updated"]
+        )
+        is_stale_data = datetime.datetime.now() - market_data_last_updated > datetime.timedelta(days=1)
+        if not is_stale_data:
+            return market_data
+    contract = symbols_db.table("contracts").get(tinydb.where("ticker") == symbol_upper)
+    if not contract:
+        raise fastapi.HTTPException(status_code=404, detail="Symbol not found")
+    conid = contract["contract_id"]
+    historical_data = request_historical_data(conid, "1y", "1d")
+    market_data = {
+        "symbol": symbol.upper(),
+        "last_updated": datetime.datetime.now().isoformat(),
+        "bars": historical_data,
+    }
+    hmds_db.upsert(market_data, tinydb.where("symbol") == symbol_upper)
+    return market_data

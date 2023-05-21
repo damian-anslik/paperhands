@@ -1,6 +1,6 @@
 <template>
     <div class="table-container">
-        <table v-if="orders.length">
+        <table v-if="orders && orders.length > 0">
             <thead>
                 <tr>
                     <th>Symbol</th>

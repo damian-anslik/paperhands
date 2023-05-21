@@ -1,6 +1,6 @@
 <template>
     <div class="table-container">
-        <table v-if="positions.length">
+        <table v-if="positions && positions.length > 0">
             <thead>
                 <tr>
                     <th>Symbol</th>

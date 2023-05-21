@@ -33,6 +33,7 @@ body {
   margin: 0;
   background-color: #0d1117;
   overflow-y: scroll;
+  overflow-x: hidden;
 }
 
 /* Style the scrollbar */

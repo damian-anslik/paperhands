@@ -65,5 +65,9 @@ export default {
     .dashboard-container {
         flex-direction: column;
     }
+
+    .sidebar-container {
+        display: none;
+    }
 }
 </style>

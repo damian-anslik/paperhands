@@ -5,7 +5,7 @@
                 <tr>
                     <th>Symbol</th>
                     <th>Quantity</th>
-                    <th>Price</th>
+                    <th>Side</th>
                     <th>Unrealized PnL</th>
                 </tr>
             </thead>
@@ -17,7 +17,7 @@
                         </a>
                     </td>
                     <td>{{ position.quantity }}</td>
-                    <td>{{ position.price }}</td>
+                    <td>{{ position.side }}</td>
                     <td></td>
                 </tr>
             </tbody>

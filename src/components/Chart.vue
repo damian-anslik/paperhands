@@ -7,7 +7,6 @@
 <script>
 import controller from '@/controller'
 export default {
-    // TODO When chart is first loaded, show a message to select a symbol if no activeSymbol is set, or show the chart if activeSymbol is set
     name: "Apex charts",
     computed: {
         activeSymbol() {

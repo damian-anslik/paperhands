@@ -20,7 +20,7 @@ const activePortfolioPlugin = store => {
       interval = setInterval(async () => {
         const portfolio = await controller.portfolioData(state.activePortfolio.id)
         store.commit('setPortfolio', portfolio.data)
-      }, 5000)
+      }, 1000)
     }
     else {
       // Stops the interval when the user logs out

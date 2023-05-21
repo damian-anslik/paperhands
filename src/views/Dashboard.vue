@@ -1,17 +1,23 @@
 <template>
     <SessionTimeoutDialog />
-    <div class="dashboard-container">
-        <div class="portfolio-container">
-            <Chart />
-            <Portfolio v-if="activePortfolio" :portfolio="activePortfolio" />
-            <div v-else>
-                <h2>You don't have any portfolios yet.</h2>
-                <router-link to="/portfolio/new">Create a new portfolio</router-link>
+    <div v-if="activePortfolio">
+        <div class="dashboard-container">
+            <div class="portfolio-container">
+                <Chart />
+                <Portfolio v-if="activePortfolio" :portfolio="activePortfolio" />
+                <div v-else>
+                    <h2>You don't have any portfolios yet.</h2>
+                    <router-link to="/portfolio/new">Create a new portfolio</router-link>
+                </div>
+            </div>
+            <div class="sidebar-container">
+                <OrderForm :portfolioId="activePortfolio.id" :availableSymbols="availableSymbols" />
             </div>
         </div>
-        <div class="sidebar-container">
-            <OrderForm :portfolioId="activePortfolio.id" :availableSymbols="availableSymbols" />
-        </div>
+    </div>
+    <div v-else>
+        <h2>You don't have any portfolios yet.</h2>
+        <router-link to="/portfolio/new">Create a new portfolio</router-link>
     </div>
 </template>
   
@@ -46,7 +52,6 @@ export default {
 </script>
   
 <style scoped>
-/* TODO portfolio-container and sidebar-container should scroll independently */
 .dashboard-container {
     display: flex;
     flex: 1;

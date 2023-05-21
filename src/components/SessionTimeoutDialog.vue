@@ -37,7 +37,7 @@ export default {
         checkSessionTimeout() {
             this.interval = setInterval(() => {
                 const tokenExpiry = this.tokenExpiry;
-                const currentTime = Math.floor(Date.now() / 1000) - 3600; // HACK Subtract 1 hour to account for tz offset
+                const currentTime = Math.floor(Date.now() / 1000) - 3600; 
                 let diff = tokenExpiry - currentTime;
                 this.timeRemaining = Math.floor(diff);
                 if (diff <= 0) {

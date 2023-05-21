@@ -1,4 +1,3 @@
-<!-- TODO This does not currently submit the form when the button is clicked. -->
 <template>
     <div>
         <form>

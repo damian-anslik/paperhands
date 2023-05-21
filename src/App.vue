@@ -1,6 +1,8 @@
 <template>
   <Navbar />
-  <router-view />
+  <div class="content">
+    <router-view />
+  </div>
 </template>
 
 <script>
@@ -28,6 +30,26 @@ export default {
 </script>
 
 <style>
+body {
+  margin: 0;
+  background-color: #0d1117;
+  overflow-y: scroll;
+}
+
+/* Style the scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: #0d1117;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #30363d;
+}
+
 #app {
   font-family: Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -37,10 +59,5 @@ export default {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
-  max-width: 1024px;
-}
-
-body {
-  margin: 1rem;
 }
 </style>

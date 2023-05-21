@@ -1,37 +1,33 @@
 <template>
         <form>
             <div v-if="error" class="error">{{ error }}</div>
-            <div class="order-details">
-                <label id="symbol">
-                    Symbol
-                    <input type="text" list="symbols" v-model="symbol" placeholder="Enter a symbol" required>
-                    <datalist id="symbols">
-                        <option v-for="symbol in availableSymbols" :key="symbol" :value="symbol.ticker">{{ symbol.ticker }} ({{ symbol.name }})</option>
-                    </datalist>
-                </label>
-                <label id="quantity">
-                    Quantity
-                    <input type="number" v-model="quantity" min="1" required>
-                </label>
-            </div>
-            <div class="order-details-extra">
-                <!-- Select whether the order is a MKT or LMT order, if it's a LMT order show the limit price field -->
-                <label id="order-type">
-                    Order Type
-                    <select v-model="orderType" required>
-                        <option value="MKT">MKT</option>
-                        <option value="LMT">LMT</option>
-                    </select>
-                </label>
-                <!-- Change the visibility of the limit price field based on the order type -->
-                <label id="limit-price" v-if="orderType === 'LMT'">
-                    Limit Price
-                    <input type="number" v-model="limitPrice" min="0" required>
-                </label>
-            </div>
+            <label id="symbol">
+                Symbol
+                <!-- When the user selects a symbol from the list, update the active symbol in the store, which will update the symbol input -->
+                <input type="text" :value="activeSymbol" list="symbols" :onblur="(e) => onBlurHandler(e.target.value)" required>
+                <datalist id="symbols">
+                    <option v-for="symbol in availableSymbols" :key="symbol" :value="symbol.ticker">{{ symbol.ticker }} ({{ symbol.name }})</option>
+                </datalist>
+            </label>
+            <label id="quantity">
+                Quantity
+                <input type="number" v-model="quantity" list="quantities" min="1" required>
+            </label>
+            <label id="order-type">
+                Order Type
+                <select v-model="orderType" required>
+                    <option value="MKT">MKT</option>
+                    <option value="LMT">LMT</option>
+                </select>
+            </label>
+            <!-- Change the visibility of the limit price field based on the order type -->
+            <label id="limit-price" v-if="orderType === 'LMT'">
+                Limit Price
+                <input type="number" v-model="limitPrice" min="0" required>
+            </label>
             <div class="buttons">
-                <button id="sell-order" @click.prevent="submitSellOrder">Sell</button>
                 <button id="buy-order" @click.prevent="submitBuyOrder">Buy</button>
+                <button id="sell-order" @click.prevent="submitSellOrder">Sell</button>
             </div>
         </form>
 </template>
@@ -44,22 +40,26 @@ export default {
         portfolioId: {
             type: String,
             required: true
-        },
-        availableSymbols: {
-            type: Array,
-            required: true
         }
     },
     data() {
         return {
-            symbol: "",
-            quantity: 1,
+            quantity: null,
             limitPrice: null,
             orderType: "MKT",
-            error: ""
+            error: "",
+            availableSymbols: this.$store.getters.availableSymbols
+        }
+    },
+    computed: {
+        activeSymbol() {
+            return this.$store.getters.activeSymbol
         }
     },
     methods: {
+        onBlurHandler(symbol) {
+            this.$store.commit("setActiveSymbol", symbol)
+        },
         submitBuyOrder() {
             this.submitOrder("BUY")
         },
@@ -67,21 +67,25 @@ export default {
             this.submitOrder("SELL")
         },
         submitOrder(side) {
-            if (this.symbol === "") {
+            let symbol = this.$store.getters.activeSymbol
+            if (symbol === "") {
                 this.error = "Symbol cannot be empty"
+                return
+            }
+            if (!this.availableSymbols.some(s => s.ticker === symbol)) {
+                this.error = "Symbol is not available"
                 return
             }
             if (this.quantity <= 0) {
                 this.error = "Quantity must be greater than 0"
                 return
             }
-            if (!this.availableSymbols.find(symbol => symbol.ticker === this.symbol)) {
-                // Validate that the symbol is available
-                this.error = "Symbol is not available"
+            if (this.orderType === "LMT" && this.limitPrice === null) {
+                this.error = "Limit price cannot be empty"
                 return
             }
             this.error = ""
-            controller.placeOrder(this.portfolioId, this.symbol, this.quantity, side, this.orderType, this.limitPrice)
+            controller.placeOrder(this.portfolioId, symbol, this.quantity, side, this.orderType, this.limitPrice)
                 .then(response => {
                     this.$store.dispatch("addOrder", response.data)
                 })
@@ -94,104 +98,38 @@ export default {
 </script>
 
 <style scoped>
+/* TODO Fix input overflow causing horizontal scroll */
 form {
-    width: 100%;
     margin: 0 auto;
-    background-color: #fff;
-    border: 1px solid #ccc;
-    border-radius: 5px;
+    background-color: #0d1117;
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
-    padding-block: 1rem;
+    padding: 1rem;
 }
 
-.order-type {
+form label {
     display: flex;
-    gap: 1rem;
-}
-
-.order-details {
-    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
     width: 100%;
-    flex: 1;
+    text-align: left;
 }
 
-.order-details #symbol {
-    flex: 3;
-}
-
-.order-details #symbol input {
-    width: 100%;
-}
-
-/* 
-.order-details #symbol {
-    flex: 3;
-}
-
-.order-details #symbol select {
-    width: 100%;
-} */
-
-.order-details #quantity {
-    flex: 1;
-}
-
-.order-details #quantity input {
-    width: 100%;
-}
-
-.order-details-extra {
-    display: flex;
-    width: 100%;
-    flex: 1;
-}
-
-.order-details-extra #order-type {
-    flex: 1;
-}
-
-.order-details-extra #order-type select {
-    width: 100%;
-}
-
-.order-details-extra #limit-price {
-    /* Dont' make it visible */
-    flex: 1;
-}
-
-.order-details-extra #limit-price input {
-    width: 100%;
-}
-
-input, select {
-    padding-block: 0.75rem;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-    background-color: #fff;
-    color: #000;
+form label input, select {
+    padding: 0.25rem 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background-color: #161b22;
+    color: #ccc;
     font-size: 1rem;
 }
 
-label {
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
-    width: 100%;
-    align-items: flex-start;    
-    gap: 1rem;
-    margin: 0 1rem;
-}
-
 button {
-    padding: 0.75rem;
-    border: 1px solid #ccc;
-    border-radius: 5px;
+    padding: 0.25rem 0.5rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     background-color: #4CAF50;
     color: #fff;
     cursor: pointer;
-    margin-inline: 1rem;
     flex: 1;
     font-weight: bold;
     font-size: 1rem;
@@ -200,6 +138,7 @@ button {
 .buttons {
     display: flex;
     justify-content: center;
+    gap: 1rem;
 }
 
 button#sell-order {
@@ -213,9 +152,15 @@ button#buy-order {
 .error {
     background-color: #f44336;
     color: #fff;
-    border-radius: 5px;
-    border: 1px solid #ccc;
-    margin: 0 1rem;
-    padding: 1rem;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 0.5rem 1rem;
+    text-align: left;
+}
+
+
+@media screen and (max-width: 1024px) {
+    form {
+        display: none;
+    }
 }
 </style>

@@ -36,10 +36,12 @@ export default {
 
 <style scoped>
 .portfolio-selector {
-    padding: 10px 20px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     cursor: pointer;
     width: 200px;
+    padding: 0.25rem 0.5rem;
+    background-color: #161b22;
+    color: #c9d1d9;
+    font-size: 1rem;
 }
 </style>

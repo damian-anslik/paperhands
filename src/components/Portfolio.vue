@@ -1,30 +1,22 @@
 <template>
     <div class="portfolio-container">
-        <div>
-            <h2>Place an order</h2>
-            <OrderForm :portfolioId="portfolio.id" :availableSymbols="availableSymbols" />
+        <div class="tab-selector">
+            <div :class="{ active: activeTab === 'Positions' }" @click="() => activeTabChanged('Positions')">Positions</div>
+            <div :class="{ active: activeTab === 'Orders' }" @click="() => activeTabChanged('Orders')">Orders</div>
         </div>
-        <div>
-            <h2>Active orders</h2>
-            <div class="orders-list">
-                <Order v-if="portfolio.orders && portfolio.orders.length > 0" v-for="order in portfolio.orders" :key="order.id" :order="order" />
-                <p v-else>You do not currently have any active orders</p>
-            </div>
+        <div v-if="activeTab === 'Positions'">
+            <Positions :positions="portfolio.positions" />
         </div>
-        <div>
-            <h2>Positions</h2>
-            <div class="positions-list">
-                <Position v-if="portfolio.positions && portfolio.positions.length > 0" v-for="position in portfolio.positions" :key="position.id"  :position="position" /> 
-                <p v-else>You do not currently have any positions</p>
-            </div>
+        <div v-else>
+            <Orders :orders="portfolio.orders" />
         </div>
     </div>
 </template>
 
 <script>
-import OrderForm from '@/components/OrderForm.vue'
-import Order from '@/components/Order.vue'
-import Position from '@/components/Position.vue'
+import Orders from '@/components/Orders.vue'
+import Positions from '@/components/Positions.vue'
+import Chart from '@/components/Chart.vue'
 export default {
     name: "Portfolio",
     props: {
@@ -34,22 +26,53 @@ export default {
         }
     },
     components: {
-        OrderForm,
-        Order,
-        Position
+        Orders,
+        Positions,
+        Chart
     },
     computed: {
         availableSymbols() {
             return this.$store.getters.availableSymbols
+        },
+        activeTab() {
+            return this.$store.getters.activeTab
+        }
+    },
+    methods: {
+        activeTabChanged(tab) {
+            this.$store.commit('setActiveTab', tab)
+        }
+    },
+    data() {
+        return {
+            tabs: ['Positions', 'Orders']
         }
     }
 }
 </script>
         
 <style scoped>
-.positions-list, .orders-list {
+.positions-list,
+.orders-list {
     display: grid;
     grid-template-columns: 1fr 1fr;
     grid-gap: 20px;
+}
+
+.tab-selector {
+    display: flex;
+}
+
+.tab-selector div {
+    cursor: pointer;
+    padding: 0.5rem 1rem;
+    border-bottom: none;
+    color: #c9d1d9;
+    user-select: none;
+}
+
+.tab-selector div.active {
+    background-color: #161b22;
+    border-bottom: 2px solid #c9d1d9;
 }
 </style>

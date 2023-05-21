@@ -35,6 +35,8 @@ const store = createStore({
     tokenExpiry: null,
     activePortfolio: null,
     availableSymbols: null,
+    activeSymbol: '',
+    activeTab: 'Positions'
   },
   mutations: {
     setLoading(state, loading) {
@@ -55,6 +57,12 @@ const store = createStore({
     setAvailableSymbols(state, symbols) {
       state.availableSymbols = symbols
     },
+    setActiveSymbol(state, symbol) {
+      state.activeSymbol = symbol
+    },
+    setActiveTab(state, tab) {
+      state.activeTab = tab
+    }
   },
   getters: {
     isLoading(state) {
@@ -77,6 +85,12 @@ const store = createStore({
     },
     tokenExpiryTime(state) {
       return state.tokenExpiry
+    },
+    activeSymbol(state) {
+      return state.activeSymbol
+    },
+    activeTab(state) {
+      return state.activeTab
     }
   },
   actions: {

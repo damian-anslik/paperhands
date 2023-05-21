@@ -1,6 +1,7 @@
 <template>
     <div class="dashboard-container">
         <div class="portfolio-container">
+            <Chart />
             <Portfolio v-if="activePortfolio" :portfolio="activePortfolio" />
             <div v-else>
                 <h2>You don't have any portfolios yet.</h2>
@@ -8,6 +9,7 @@
             </div>
         </div>
         <div class="sidebar-container">
+            <OrderForm :portfolioId="activePortfolio.id" :availableSymbols="availableSymbols" />
         </div>
     </div>
 </template>
@@ -15,10 +17,19 @@
 <script>
 import Portfolio from '@/components/Portfolio.vue'
 import NewPortfolioForm from '@/components/NewPortfolioForm.vue'
+import OrderForm from '@/components/OrderForm.vue'
+import Chart from '@/components/Chart.vue'
 export default {
     components: {
         Portfolio,
-        NewPortfolioForm
+        NewPortfolioForm,
+        OrderForm,
+        Chart
+    },
+    data() {
+        return {
+            availableSymbols: []
+        }
     },
     computed: {
         user() {
@@ -32,26 +43,22 @@ export default {
 </script>
   
 <style scoped>
+/* TODO portfolio-container and sidebar-container should scroll independently */
 .dashboard-container {
     display: flex;
-    margin-top: 1rem;
-    gap: 1rem;
     flex: 1;
+    z-index: -1;
 }
 
 .portfolio-container {
-    text-align: left;
-    flex: 2;
-}
-
-.sidebar-container {
-    background-color: #F2F2F2;
-    padding: 0;
     flex: 1;
 }
 
-/* On small and medium devices show the sidebar container below the portfolio */
-@media screen and (max-width: 900px) {
+.sidebar-container {
+    flex: 0 0 290px;
+}
+
+@media screen and (max-width: 1024px) {
     .dashboard-container {
         flex-direction: column;
     }

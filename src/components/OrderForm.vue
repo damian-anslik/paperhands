@@ -3,7 +3,6 @@
             <div v-if="error" class="error">{{ error }}</div>
             <label id="symbol">
                 Symbol
-                <!-- When the user selects a symbol from the list, update the active symbol in the store, which will update the symbol input -->
                 <input type="text" :value="activeSymbol" list="symbols" :onblur="(e) => onBlurHandler(e.target.value)" required>
                 <datalist id="symbols">
                     <option v-for="symbol in availableSymbols" :key="symbol" :value="symbol.ticker">{{ symbol.ticker }} ({{ symbol.name }})</option>
@@ -20,14 +19,13 @@
                     <option value="LMT">LMT</option>
                 </select>
             </label>
-            <!-- Change the visibility of the limit price field based on the order type -->
             <label id="limit-price" v-if="orderType === 'LMT'">
                 Limit Price
                 <input type="number" v-model="limitPrice" min="0" required>
             </label>
             <div class="buttons">
-                <button id="buy-order" @click.prevent="submitBuyOrder">Buy</button>
                 <button id="sell-order" @click.prevent="submitSellOrder">Sell</button>
+                <button id="buy-order" @click.prevent="submitBuyOrder">Buy</button>
             </div>
         </form>
 </template>

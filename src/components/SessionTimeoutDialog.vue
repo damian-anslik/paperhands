@@ -46,6 +46,9 @@ export default {
                 if (diff <= 60) {
                     this.showDialog = true;
                 }
+                else {
+                    this.showDialog = false;
+                }
             }, 1000);
         },
         extendSession() {

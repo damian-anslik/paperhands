@@ -1,6 +1,6 @@
 <template>
     <div>
-        <h1>Reset Password</h1>
+        <h2>Reset Password</h2>
         <ResetPasswordForm v-if="token" :token="token" />
         <ResetPasswordRequestForm v-else />
     </div>

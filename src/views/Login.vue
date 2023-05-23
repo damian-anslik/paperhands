@@ -1,6 +1,6 @@
 <template>
     <div>
-        <h1>Login</h1>
+        <h2>Login</h2>
         <LoginForm />
         <span>
             Forgot your password? <router-link to="/reset-password">Reset Password</router-link>

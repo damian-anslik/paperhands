@@ -1,17 +1,25 @@
 <template>
   <Navbar />
   <div class="content">
+    <SessionTimeoutDialog v-if="isAuthenticated"/>
     <router-view />
   </div>
 </template>
 
 <script>
 import Navbar from '@/components/Navbar.vue'
+import SessionTimeoutDialog from '@/components/SessionTimeoutDialog.vue'
 import controller from '@/controller'
 export default {
   name: 'App',
   components: {
-    Navbar
+    Navbar,
+    SessionTimeoutDialog
+  },
+  computed: {
+    isAuthenticated() {
+      return this.$store.getters.isAuthenticated
+    }
   },
   created() {
     if (this.$store.getters.availableSymbols) {
@@ -59,5 +67,9 @@ body {
   margin: 0 auto;
   display: flex;
   flex-direction: column;
+}
+
+.content {
+  padding-inline: 1rem;
 }
 </style>

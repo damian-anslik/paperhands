@@ -1,5 +1,4 @@
 <template>
-    <SessionTimeoutDialog />
     <div v-if="activePortfolio">
         <div class="dashboard-container">
             <div class="portfolio-container">
@@ -26,14 +25,12 @@ import Portfolio from '@/components/Portfolio.vue'
 import NewPortfolioForm from '@/components/NewPortfolioForm.vue'
 import OrderForm from '@/components/OrderForm.vue'
 import Chart from '@/components/Chart.vue'
-import SessionTimeoutDialog from '@/components/SessionTimeoutDialog.vue'
 export default {
     components: {
         Portfolio,
         NewPortfolioForm,
         OrderForm,
         Chart,
-        SessionTimeoutDialog
     },
     data() {
         return {
@@ -56,14 +53,17 @@ export default {
     display: flex;
     flex: 1;
     z-index: -1;
+    gap: 1rem;
 }
 
 .portfolio-container {
     flex: 1;
+    padding-block: 1rem;
 }
 
 .sidebar-container {
     flex: 0 0 270px;
+    padding-block: 1rem;
 }
 
 @media screen and (max-width: 1024px) {

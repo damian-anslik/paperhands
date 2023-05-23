@@ -30,19 +30,19 @@ div {
     gap: 1.5rem;
 }
 
-
 span {
     width: 100%;
     margin: 0 auto;
-    background-color: #fff;
+    background-color: #161b22;
     padding-block: 1rem;
-    border: 1px solid #ccc;
-    border-radius: 5px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     text-align: center;
 }
 
 span a {
-    color: #000;
+    color: #c9d1d9;
+    font-weight: bold;
+    text-decoration: none;
 }
 
 span a:hover {

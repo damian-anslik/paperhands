@@ -52,6 +52,10 @@ export default {
 </script>
         
 <style scoped>
+.portfolio-container {
+    padding-bottom: 1rem;
+}
+
 .positions-list,
 .orders-list {
     display: grid;

@@ -63,7 +63,7 @@ export default {
 }
 
 .sidebar-container {
-    flex: 0 0 290px;
+    flex: 0 0 270px;
 }
 
 @media screen and (max-width: 1024px) {

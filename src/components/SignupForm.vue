@@ -72,12 +72,12 @@ export default {
 
 
 <style scoped>
+
 form {
     width: 100%;
     margin: 0 auto;
-    background-color: #fff;
-    border: 1px solid #ccc;
-    border-radius: 5px;
+    background-color: #161b22;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
@@ -94,19 +94,20 @@ label {
 
 input {
     padding: 1rem;
+    background-color: #c9d1d9; 
     border: 1px solid #ccc;
-    border-radius: 5px;
 }
 
 button {
     padding: 1rem;
     border: 1px solid #ccc;
-    border-radius: 5px;
     background-color: #4CAF50;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     color: #fff;
     cursor: pointer;
     margin: 0 1rem;
 }
+
 
 button.disabled {
     background-color: #ccc;
@@ -117,8 +118,7 @@ button.disabled {
 .error {
     background-color: #f44336;
     color: #fff;
-    border-radius: 5px;
-    border: 1px solid #ccc;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     margin: 0 1rem;
     padding: 1rem;
 }
@@ -126,8 +126,7 @@ button.disabled {
 .success {
     background-color: #007bff;
     color: #fff;
-    border-radius: 5px;
-    border: 1px solid #ccc;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     margin: 0 1rem;
     padding: 1rem;
 }

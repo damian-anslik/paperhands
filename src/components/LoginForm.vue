@@ -58,9 +58,8 @@ export default {
 form {
     width: 100%;
     margin: 0 auto;
-    background-color: #fff;
-    border: 1px solid #ccc;
-    border-radius: 5px;
+    background-color: #161b22;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     display: flex;
     flex-direction: column;
     gap: 1.5rem;
@@ -77,15 +76,15 @@ label {
 
 input {
     padding: 1rem;
+    background-color: #c9d1d9;
     border: 1px solid #ccc;
-    border-radius: 5px;
 }
 
 button {
     padding: 1rem;
     border: 1px solid #ccc;
-    border-radius: 5px;
     background-color: #4CAF50;
+    border: 1px solid rgba(255, 255, 255, 0.1);
     color: #fff;
     cursor: pointer;
     margin: 0 1rem;

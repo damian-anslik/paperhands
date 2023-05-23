@@ -157,6 +157,13 @@ const controller = {
                 }
             }
         )
+    },
+    async deletePortfolio(portfolioId) {
+        return axios.delete(`/portfolio?id=${portfolioId}`,
+            {
+                headers: this.authHeader()
+            }
+        )
     }
 }
 

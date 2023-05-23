@@ -18,6 +18,7 @@ const activePortfolioPlugin = store => {
         clearInterval(interval)
       }
       interval = setInterval(async () => {
+        if (!state.activePortfolio) return
         const portfolio = await controller.portfolioData(state.activePortfolio.id)
         store.commit('setPortfolio', portfolio.data)
       }, 1000)
@@ -153,6 +154,18 @@ const store = createStore({
         return portfolio
       })
       commit('setUser', user)
+    },
+    async deletePortfolio({ commit }, portfolioId) {
+      let user = this.getters.user
+      user.portfolios = user.portfolios.filter(portfolio => portfolio.id !== portfolioId)
+      commit('setUser', user)
+      // If the user has no portfolios left, set the active portfolio to null
+      if (user.portfolios.length === 0) {
+        commit('setPortfolio', null)
+      }
+      else {
+        this.dispatch('setActivePortfolio', user.portfolios[0])
+      } 
     }
   },
   plugins: [

@@ -4,19 +4,14 @@
             <div class="portfolio-container">
                 <Chart />
                 <Portfolio v-if="activePortfolio" :portfolio="activePortfolio" />
-                <div v-else>
-                    <h2>You don't have any portfolios yet.</h2>
-                    <router-link to="/portfolio/new">Create a new portfolio</router-link>
-                </div>
             </div>
             <div class="sidebar-container">
                 <OrderForm :portfolioId="activePortfolio.id" :availableSymbols="availableSymbols" />
             </div>
         </div>
     </div>
-    <div v-else>
+    <div v-else class="empty-portfolios">
         <h2>You don't have any portfolios yet.</h2>
-        <router-link to="/portfolio/new">Create a new portfolio</router-link>
     </div>
 </template>
   
@@ -64,6 +59,15 @@ export default {
 .sidebar-container {
     flex: 0 0 270px;
     padding-block: 1rem;
+}
+
+.empty-portfolios {
+    /* Show in middle of screen */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
 }
 
 @media screen and (max-width: 1024px) {

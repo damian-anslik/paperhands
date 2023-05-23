@@ -1,7 +1,9 @@
 <template>
     <div>
-        <h2>Portfolio Settings</h2>
-        <PortfolioSettingsForm :portfolio="portfolio" />
+        <div v-if="portfolio">
+            <h2>Portfolio Settings</h2>
+            <PortfolioSettingsForm :portfolio="portfolio" />
+        </div>
         <h2>User Settings</h2>
         <UserSettingsForm />
     </div>

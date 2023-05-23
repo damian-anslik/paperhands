@@ -143,6 +143,16 @@ const store = createStore({
     async extendSession({ commit }, { access_token, access_token_expires }) {
       commit('setToken', access_token)
       commit('setTokenExpiry', access_token_expires)
+    },
+    async updatePortfolioDetails({ commit }, { oldPortfolio, newPortfolio }) {
+      let user = this.getters.user
+      user.portfolios = user.portfolios.map(portfolio => {
+        if (portfolio.id === oldPortfolio.id) {
+          return newPortfolio
+        }
+        return portfolio
+      })
+      commit('setUser', user)
     }
   },
   plugins: [

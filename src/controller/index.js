@@ -143,7 +143,21 @@ const controller = {
             }
         )
     },
-
+    async updatePortfolio(portfolioId, portfolioName) {
+        console.log(portfolioName)
+        return axios.put(`/portfolio?id=${portfolioId}`,
+            {
+                portfolio_name: portfolioName,
+                is_public: false
+            },
+            {
+                headers: {
+                    ...this.authHeader(),
+                    "Content-Type": "application/x-www-form-urlencoded",
+                }
+            }
+        )
+    }
 }
 
 export default controller

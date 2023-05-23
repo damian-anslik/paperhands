@@ -347,6 +347,8 @@ def update_portfolio(
         name=portfolio_name,
         owner_id=portfolio["owner_id"],
         is_public=is_public,
+        positions=portfolio["positions"],
+        orders=portfolio["orders"],
     )
     portfolio_db.update(
         updated_portfolio.dict(),

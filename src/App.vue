@@ -1,20 +1,17 @@
 <template>
   <Navbar />
   <div class="content">
-    <SessionTimeoutDialog />
     <router-view />
   </div>
 </template>
 
 <script>
 import Navbar from '@/components/Navbar.vue'
-import SessionTimeoutDialog from '@/components/SessionTimeoutDialog.vue'
 import controller from '@/controller'
 export default {
   name: 'App',
   components: {
-    Navbar,
-    SessionTimeoutDialog
+    Navbar
   },
   created() {
     if (this.$store.getters.availableSymbols) {

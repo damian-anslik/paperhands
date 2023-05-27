@@ -245,10 +245,9 @@ nav {
 
 
 .portfolio-actions {
-    background-color: #f44336;
     display: flex;
     gap: 1rem;
-    // TODO Fix button alignment
+    margin-inline: 1rem;
 
     button {
         padding: 1rem;
@@ -258,6 +257,7 @@ nav {
         color: #fff;
         cursor: pointer;
         flex: 1;
+        margin: 0;
     }
 
     button.disabled {

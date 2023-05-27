@@ -1,5 +1,5 @@
 <template>
-    <form>
+    <form class="order-form">
         <div v-if="error" class="error">{{ error }}</div>
         <label id="symbol">
             Symbol
@@ -114,75 +114,3 @@ export default {
     }
 }
 </script>
-
-<style scoped>
-form {
-    margin: 0 auto;
-    background-color: #0d1117;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-}
-
-form label {
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-    width: 100%;
-    text-align: left;
-}
-
-form label input,
-select {
-    padding: 0.25rem 0.5rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background-color: #161b22;
-    color: #ccc;
-    font-size: 1rem;
-}
-
-button {
-    padding: 0.25rem 0.5rem;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    background-color: #4CAF50;
-    color: #fff;
-    cursor: pointer;
-    flex: 1;
-    font-weight: bold;
-    font-size: 1rem;
-}
-
-.buttons {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-}
-
-button#sell-order {
-    background-color: #f44336;
-}
-
-button#buy-order {
-    background-color: #4CAF50;
-}
-
-button.disabled {
-    background-color: #ccc;
-    color: #fff;
-    cursor: not-allowed;
-}
-
-.error {
-    background-color: #f44336;
-    color: #fff;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    padding: 0.5rem 1rem;
-    text-align: left;
-}
-
-@media screen and (max-width: 1024px) {
-    form {
-        display: none;
-    }
-}
-</style>

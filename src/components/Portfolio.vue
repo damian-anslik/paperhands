@@ -50,33 +50,3 @@ export default {
     }
 }
 </script>
-        
-<style scoped>
-.portfolio-container {
-    padding-bottom: 1rem;
-}
-
-.positions-list,
-.orders-list {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-gap: 20px;
-}
-
-.tab-selector {
-    display: flex;
-}
-
-.tab-selector div {
-    cursor: pointer;
-    padding: 0.5rem 1rem;
-    border-bottom: none;
-    color: #c9d1d9;
-    user-select: none;
-}
-
-.tab-selector div.active {
-    background-color: #161b22;
-    border-bottom: 2px solid #c9d1d9;
-}
-</style>

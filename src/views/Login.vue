@@ -1,5 +1,5 @@
 <template>
-    <div>
+    <div class="single-component-view-container">
         <h2>Login</h2>
         <LoginForm />
         <span>
@@ -19,17 +19,6 @@ export default {
 </script>
 
 <style scoped>
-div {
-    width: 100%;
-    max-width: 700px;
-    margin: 0 auto;
-    text-align: left;
-    padding: 0;
-    display: flex;
-    flex-direction: column;
-    gap: 1.5rem;
-}
-
 span {
     width: 100%;
     margin: 0 auto;

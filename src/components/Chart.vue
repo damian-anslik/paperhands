@@ -74,7 +74,6 @@ export default {
         chartOptions: {
             chart: {
                 type: 'candlestick',
-                // TODO Toolbar does not show all icons on mobile
                 toolbar: {
                     show: true,
                     offsetX: -4,
@@ -127,15 +126,3 @@ export default {
     }),
 };
 </script>
-
-<style>
-.chart-container {
-    padding-block: 1rem;
-    width: 100%;
-    height: 60vh;
-    z-index: -1;
-    resize: vertical;
-    overflow: hidden;
-    background-color: black;
-}
-</style>

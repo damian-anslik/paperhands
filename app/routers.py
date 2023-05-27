@@ -226,7 +226,7 @@ async def request_password_reset(
     user_in_db = get_user(users_db, username)
     if not user_in_db:
         raise fastapi.HTTPException(
-            status_code=fastapi.status.HTTP_400_BAD_REQUEST,
+            status_code=fastapi.status.HTTP_404_NOT_FOUND,
             detail="User not found",
         )
     # Generate a reset token

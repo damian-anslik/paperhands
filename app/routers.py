@@ -2,8 +2,7 @@ import datetime
 import fastapi
 import dotenv
 import os
-import numpy
-from cpapi import session
+import requests
 import google.cloud.firestore as firestore
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jose import JWTError, jwt
@@ -29,11 +28,13 @@ firestore_client = firestore.Client()
 orders_collection = firestore_client.collection("orders")
 users_collection = firestore_client.collection("users")
 portfolios_collection = firestore_client.collection("portfolios")
-password_reset_requests_collection = firestore_client.collection("password_reset_requests")
+password_reset_requests_collection = firestore_client.collection(
+    "password_reset_requests"
+)
 symbols_collection = firestore_client.collection("symbols")
 hmds_collection = firestore_client.collection("hmds")
 
-cpapi_client = session.GatewaySession()
+# cpapi_client = session.GatewaySession()
 
 
 def send_password_reset_email(email_to: str, username: str, token: str):
@@ -230,7 +231,9 @@ async def reset_password(
     Reset the password for a user. If the user is not found in the database, then raise an exception.
     """
     # Check if the token is valid
-    reset_requests = password_reset_requests_collection.where("token", "==", token).get()
+    reset_requests = password_reset_requests_collection.where(
+        "token", "==", token
+    ).get()
     if not reset_requests:
         raise fastapi.HTTPException(
             status_code=fastapi.status.HTTP_400_BAD_REQUEST,
@@ -261,7 +264,9 @@ async def reset_password(
         )
     # Update the user's password
     hashed_password = get_password_hash(password)
-    users_collection.document(user_in_db.id).update({"hashed_password": hashed_password})
+    users_collection.document(user_in_db.id).update(
+        {"hashed_password": hashed_password}
+    )
     # Remove the token from the database
     password_reset_requests_collection.document(reset_requests[0].id).delete()
     return fastapi.Response(status_code=fastapi.status.HTTP_202_ACCEPTED)
@@ -298,6 +303,41 @@ async def get_user_portfolio(
 
 @portfolio_router.get("/portfolio", response_model=models.Portfolio)
 def get_portfolio(portfolio: models.Portfolio = fastapi.Depends(get_user_portfolio)):
+    non_zero_quantity_positions = [
+        position for position in portfolio["positions"] if position["quantity"] != 0
+    ]
+    position_conids = [position["conid"] for position in non_zero_quantity_positions]
+    if not position_conids:
+        return portfolio
+    # Only snapshots where quantity is not 0
+    position_conids_string = ",".join(str(conid) for conid in position_conids)
+    snapshots_response = requests.get(
+        f"{os.getenv('CPAPI_BASE_URL')}/snapshot",
+        params={"conids": position_conids_string},
+        verify=False,
+    )
+    snapshots = snapshots_response.json()
+    if not snapshots:
+        return portfolio
+    # Get the corresponding snapshot for each position
+    for position in portfolio["positions"]:
+        for snapshot in snapshots:
+            if not position["conid"] == snapshot["conid"]:
+                continue
+            side = position["side"]
+            value = position["value"]
+            if side == "BUY":
+                current_value = snapshot["ask_price"] * position["quantity"]
+                position["pnl"] = current_value - value
+            elif side == "SELL":
+                current_value = snapshot["bid_price"] * position["quantity"]
+                position["pnl"] = abs(value) - current_value
+            else:
+                continue
+    # Update the portfolio in the database
+    portfolios_collection.document(portfolio["id"]).update(
+        {"positions": portfolio["positions"]}
+    )
     return portfolio
 
 
@@ -340,7 +380,9 @@ def update_portfolio(
     user = users_collection.document(portfolio["owner_id"]).get()
     user_portfolios = user.to_dict()["portfolios"]
     user_portfolios = [
-        portfolio if portfolio["id"] != portfolio_id else {"id": portfolio_id, "name": portfolio_name}
+        portfolio
+        if portfolio["id"] != portfolio_id
+        else {"id": portfolio_id, "name": portfolio_name}
         for portfolio in user_portfolios
     ]
     users_collection.document(portfolio["owner_id"]).update(
@@ -356,6 +398,9 @@ def delete_portfolio(portfolio: models.Portfolio = fastapi.Depends(get_user_port
     """
     portfolio_id = portfolio["id"]
     portfolios_collection.document(portfolio_id).delete()
+    portfolio_orders = orders_collection.where("portfolio_id", "==", portfolio_id).get()
+    for order in portfolio_orders:
+        orders_collection.document(order.id).delete()
     user = users_collection.document(portfolio["owner_id"]).get()
     user_portfolios = user.to_dict()["portfolios"]
     user_portfolios = [
@@ -436,52 +481,9 @@ async def get_available_symbol():
     all_symbols = symbols_collection.stream()
     symbol_data = [symbol.to_dict() for symbol in all_symbols]
     return [
-        models.Symbol(
-            ticker=symbol.get("symbol"),
-            name=symbol.get("company_name")
-        )
+        models.Symbol(ticker=symbol.get("symbol"), name=symbol.get("company_name"))
         for symbol in symbol_data
     ]
-
-
-def filter_bars(bars: list[dict]) -> list[dict]:
-    """
-    Filter out bars that are above a moving average threshold.
-    """
-    MOVING_AVERAGE_WINDOW = 3
-    MOVING_AVERAGE_FILTER_THRESHOLD = 1.5
-    open_prices = [bar["o"] for bar in bars]
-    open_price_ma = (
-        numpy.convolve(open_prices, numpy.ones(MOVING_AVERAGE_WINDOW), "valid")
-        / MOVING_AVERAGE_WINDOW
-    )
-    open_prices_ma = numpy.concatenate(
-        (numpy.full(10, numpy.nan), open_price_ma), axis=None
-    )
-    filtered_bars = [
-        bar
-        for bar, open_ma in zip(bars, open_prices_ma)
-        if bar["o"] < MOVING_AVERAGE_FILTER_THRESHOLD * open_ma
-    ]
-    return filtered_bars
-
-
-def request_historical_data(
-    conid: str, period: str, bar: str, start: datetime = None
-) -> list[dict]:
-    """
-    Retrieve historical data for a contract.
-    """
-    response = cpapi_client.historical_market_data(
-        conid=conid,
-        period=period,
-        bar=bar,
-        start_time=start,
-        outside_rth=True,
-    )
-    bars = response["data"]
-    filtered_bars = filter_bars(bars)
-    return filtered_bars
 
 
 @symbols_router.get("/symbols/hmds")
@@ -494,25 +496,11 @@ async def get_historical_market_data(
     otherwise, retrieve the historical market data from the API and store it in the database.
     """
     symbol_upper = symbol.upper()
-    market_data_doc = hmds_collection.document(symbol_upper).get()
-    market_data = market_data_doc.to_dict()
-    if market_data:
-        market_data_last_updated = datetime.datetime.fromisoformat(
-            market_data["last_updated"]
-        )
-        is_stale_data = datetime.datetime.now() - market_data_last_updated > datetime.timedelta(days=1)
-        if not is_stale_data:
-            return market_data
-    contract = symbols_collection.where("symbol", "==", symbol_upper).get()[0]
-    if not contract:
-        raise fastapi.HTTPException(status_code=404, detail="Symbol not found")
-    contract_data = contract.to_dict()
-    conid = contract_data["con_id"]
-    historical_data = request_historical_data(conid, "1y", "1d")
-    market_data = {
-        "symbol": symbol.upper(),
-        "last_updated": datetime.datetime.now().isoformat(),
-        "bars": historical_data,
-    }
-    hmds_collection.document(symbol_upper).set(market_data)
-    return market_data
+    hmds_response = requests.get(
+        f"{os.getenv('CPAPI_BASE_URL')}/hmds",
+        params={"symbol": symbol_upper},
+        verify=False,
+    )
+    if hmds_response.status_code == 200:
+        return hmds_response.json()
+    raise fastapi.HTTPException(status_code=fastapi.status.HTTP_404_NOT_FOUND)
